@@ -150,6 +150,7 @@ setInterval(function() {
 *************************************************************************/
 server.listen(5000, function() {
   console.log('Starting server on port 5000');
+  console.log(__dirname+'/index.html');
 });
 
 /************************************************************************
