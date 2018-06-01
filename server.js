@@ -60,10 +60,10 @@ const controlPoints = new Array();
 *        Server Set Up
 *************************************************************************/
 app.set('port', 5000);
-app.use('/', express.static(__dirname + '/static'));
+app.use('/', express.static(__dirname + '/static/'));
 // Routing
 app.get('/', function(request, response) {
-  response.sendFile(__dirname+'/index.html');
+  response.sendFile(__dirname+'/static/index.html');
 });
 
 
@@ -124,7 +124,13 @@ io.on('connection', function(socket) {
   });
 });
 
-
+/************************************************************************
+*        Starts the server
+*************************************************************************/
+server.listen(5000, function() {
+  console.log('Starting server on port 5000');
+  console.log(__dirname+'/static/index.html');
+});
 
 
 /************************************************************************
@@ -145,13 +151,7 @@ setInterval(function() {
 
 
 
-/************************************************************************
-*        Starts the server
-*************************************************************************/
-server.listen(5000, function() {
-  console.log('Starting server on port 5000');
-  console.log(__dirname+'/index.html');
-});
+
 
 /************************************************************************
 *         Make Bullets Move
@@ -326,11 +326,9 @@ function checkPlayersInPoint(){
           }
         }
       }
-      console.log(JSON.stringify(controlPoints[point]));
     }
 
     if (playerInArea1>playerInArea2) {
-      console.log("p1");
       if (controlPoints[point].points == 0){
         controlPoints[point].team = 1;
         controlPoints[point].points = 1;
@@ -339,8 +337,7 @@ function checkPlayersInPoint(){
       }else if (controlPoints[point].team == 2 && controlPoints[point].points > 0) {
         controlPoints[point].points -= 1;
       }    
-    }else if (playerInArea2>playerInArea1) {
-      console.log("p2");
+    }else if (playerInArea2>playerInArea1) {;
       if (controlPoints[point].points == 0){
         controlPoints[point].team = 2;
         controlPoints[point].points = 1;
