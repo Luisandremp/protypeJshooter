@@ -3,12 +3,15 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const socketIO = require('socket.io');
-const Player = require('./entity/player.js');
-
 
 const app = express();
 const server = http.Server(app);
-const io = socketIO(server);
+const io = require('socket.io')(server);
+const PORT = process.env.PORT || 5000;
+
+
+const Player = require('./entity/player.js');
+
 const players = {};
 const bullets = new Array();
 
@@ -59,11 +62,18 @@ const controlPoints = new Array();
 /************************************************************************
 *        Server Set Up
 *************************************************************************/
-app.set('port', process.env.PORT || 5000);
-app.use('/', express.static(__dirname + '/static/'));
-// Routing
-app.get('/', function(request, response) {
-  response.sendFile(__dirname+'/static/index.html');
+app.use('/', express.static(__dirname + '/public'));
+app.get('/', function(req, res){
+
+  res.sendFile(__dirname+'/index.html');
+
+});
+/************************************************************************
+*        Starts the server
+*************************************************************************/
+server.listen(PORT, function(){
+  console.log('listening on *:5000');
+  console.log(__dirname+"/index.html")
 });
 
 
@@ -123,15 +133,6 @@ io.on('connection', function(socket) {
 
   });
 });
-
-/************************************************************************
-*        Starts the server
-*************************************************************************/
-server.listen(5000, function() {
-  console.log('Starting server on port 5000');
-  console.log(__dirname+'/static/index.html');
-});
-
 
 /************************************************************************
 *      Functions on repeat Timmer
