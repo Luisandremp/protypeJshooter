@@ -59,7 +59,7 @@ const controlPoints = new Array();
 /************************************************************************
 *        Server Set Up
 *************************************************************************/
-app.set('port', 5000);
+app.set('port', process.env.PORT || 5000);
 app.use('/', express.static(__dirname + '/static/'));
 // Routing
 app.get('/', function(request, response) {
