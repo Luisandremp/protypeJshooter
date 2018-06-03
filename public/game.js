@@ -1,5 +1,9 @@
 const socket = io();
 let worldObjects = new Array();
+let teamPoints ={
+  "1": 0,
+  "2": 0
+};
 
 socket.emit('new player');
 
@@ -78,15 +82,19 @@ canvas.height = 600;
 const context = canvas.getContext('2d');
 
 
-socket.on('world', function(objs) {
+socket.on('world', function (objs , tp) {
   worldObjects = objs;
-
+  teamPoints = (tp === undefined) ? teamPoints : tp;
 });
 
 
 socket.on('state', function(players, bullets) {
 
 context.clearRect(0, 0, 800, 600);
+
+context.font = '25px serif';
+context.fillText('team 1: '+teamPoints["1"]+' team 2: '+teamPoints["2"], 300, 28);
+
 
   for (const obj in worldObjects) {
     if (worldObjects[obj].points == 0) {
@@ -107,9 +115,7 @@ context.fillStyle = 'gray';
     
 
     context.fillRect(worldObjects[obj].x, worldObjects[obj].y, worldObjects[obj].width, worldObjects[obj].height);
-    for (let i =0; i < worldObjects[obj].points; i++ ){
-      context.fillRect(worldObjects[obj].x+(i*worldObjects[obj].width/10) , worldObjects[obj].y-10, worldObjects[obj].width/10, 5);
-    }
+    context.fillRect(worldObjects[obj].x , worldObjects[obj].y-10, (worldObjects[obj].width/10)*(worldObjects[obj].points), 5);
     context.fill();
   }
 
@@ -128,6 +134,7 @@ context.fillStyle = 'gray';
     }
     context.beginPath();
     context.arc(player.x, player.y, 15, 0, 2 * Math.PI);
+     context.fillRect(player.x-15 , player.y-25, (30/100)*(player.healthPoints), 5);
     context.fill();
   }
 

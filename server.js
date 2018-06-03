@@ -21,6 +21,10 @@ const worldLimits = {
   right: 800,
   bottom: 600
 }
+const teamPoints = {
+  "1": 0,
+  "2": 0
+};
 
 /************************************************************************
 *         Create World Static Objects
@@ -123,6 +127,7 @@ io.on('connection', function(socket) {
   // Change Players team
   socket.on('team', function(t) {
       players[socket.id].team = t;
+      players[socket.id].healthPoints = 100;
   });
 
   // Event on client disconnect  Remove the player from the game
@@ -147,41 +152,43 @@ setInterval(function() {
 setInterval(function() {
   checkPlayersInPoint();
   // Send world objects to the clients
-    io.sockets.emit('world', controlPoints);
+  io.sockets.emit('world',controlPoints , teamPoints);
 }, 1000 / 2);
 
 
 
 
-
 /************************************************************************
-*         Make Bullets Move
+*         Create Bullets
 *************************************************************************/
 function fireBullet(x,y,id){
-  //check if the player weapon is on cooldown
-  if (players[id].weaponCoolDown+200 < Date.now()) {
-    //last time fired, for CD calculations
-    players[id].weaponCoolDown = Date.now();
+  //check if is not spectator
+  if (players[id].team != 0) {
+    //check if the player weapon is on cooldown
+    if (players[id].weaponCoolDown+300 < Date.now()) {
+      //last time fired, for CD calculations
+      players[id].weaponCoolDown = Date.now();
 
-    //get coords for bullet spawn
-    bulletX = players[id]['x'] - x;
-    bulletY = players[id]['y'] - y; 
+      //get coords for bullet spawn
+      bulletX = players[id]['x'] - x;
+      bulletY = players[id]['y'] - y; 
 
-    //create a normalised vector for the direction
-    const long = Math.sqrt(bulletX*bulletX +bulletY*bulletY);
-    const dirX = bulletX/long;
-    const dirY = bulletY/long;
+      //create a normalised vector for the direction
+      const long = Math.sqrt(bulletX*bulletX +bulletY*bulletY);
+      const dirX = bulletX/long;
+      const dirY = bulletY/long;
 
-    //create the bullet object
-    bullets.push({
-        'owner': id,
-        'radius': 5,
-        'creation': Date.now(),
-        'dirX': dirX,
-        'dirY': dirY,
-        'currentX': players[id]['x'],
-        'currentY': players[id]['y'] 
-      });
+      //create the bullet object
+      bullets.push({
+          'owner': id,
+          'radius': 5,
+          'creation': Date.now(),
+          'dirX': dirX,
+          'dirY': dirY,
+          'currentX': players[id]['x'],
+          'currentY': players[id]['y'] 
+        });
+    }
   }
   
 }
@@ -193,9 +200,9 @@ function moveBullets(){
    for (bullet in bullets) {
     if (bullet != null) {
       //check how long the bullet has been alive, if still going add the vector direction else destroy it
-      if (Date.now()-bullets[bullet].creation < 3000) {
-        const destinationX = bullets[bullet].currentX - bullets[bullet].dirX*10;
-        const destinationY = bullets[bullet].currentY - bullets[bullet].dirY*10;
+      if (Date.now()-bullets[bullet].creation < 4000) {
+        const destinationX = bullets[bullet].currentX - bullets[bullet].dirX*15;
+        const destinationY = bullets[bullet].currentY - bullets[bullet].dirY*15;
 
       //check if the desired destination is available, and apply the new coords
       if (destinationX >= worldLimits.left && destinationX <= worldLimits.right ) {
@@ -219,13 +226,20 @@ function moveBullets(){
             dy = players[player].y - bullets[bullet].currentY;
             distance = Math.sqrt(dx * dx + dy * dy);
 
-            if (distance < players[player].radius + bullets[bullet].radius) {
-              //
-              //  Colision With Player
-              //
+            if ( players[bullets[bullet].owner].team != players[player].team && players[bullets[bullet].owner].team != 0 && players[player].team  != 0 ){
+              if (distance < players[player].radius + bullets[bullet].radius) {
+              //Colision with other Players
+              players[player].healthPoints -= 10;
+              if (players[player].healthPoints <= 0) {
+                players[player].team = 0;
+                players[player].healthPoints =100;
+              }
+
               bullets.splice(bullet, 1);
               return;
             }
+            }
+            
           }
         }
 
@@ -300,7 +314,6 @@ function movePlayers(){
       if (destinationY >= worldLimits.top && destinationY <= worldLimits.bottom && !isObj && !isPlayer) {
         players[player].y = destinationY; 
       }
-      
     }
   }
 }
@@ -348,8 +361,17 @@ function checkPlayersInPoint(){
         controlPoints[point].points -= 1;
       } 
     }
-      
+   
+    if (controlPoints[point].points == 0) {
+      controlPoints[point].team = 0;
+    }else if (controlPoints[point].team == 1) {
+      teamPoints["1"] += 1;
+    }else if (controlPoints[point].team == 2) {
+      teamPoints["2"] += 1;
+    }
+    
   }
+  
 }
 
 
