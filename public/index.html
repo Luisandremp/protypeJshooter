@@ -5,16 +5,64 @@
       body{
         margin: 0;
       }
+      h1{
+        margin: 0 0 0 10px;
+        padding: 0;
+      }
+      .container{
+        width: 800px;
+        height: 600px;
+        margin: 0 auto 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
       canvas {
         width: 800px;
         height: 600px;
         border: 5px solid black;
+        display: none;
       }
+      #menu{
+        width: 400px;
+        border: 5px solid black;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 10px;
+      }
+      .team{
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+
+      }
+      .hor{
+        display: flex;        
+      }
+
     </style>
     <script src="../socket.io/socket.io.js"></script>
   </head>
   <body>
-    <canvas id="canvas"></canvas>
+    <div class="container">
+      <canvas id="canvas"></canvas>  
+      <div id="menu">
+        <h1>Titre du Mega Jeu!</h1>
+        <div>number of players loged in: <span id="nb"></span></div>
+          <div>
+          <input type="text" id="nickname" placeholder="Nickname"> 
+          <div class="hor">
+            <div class="team"><button id="btnTeam1">equipe 01</button><ul id="team1list"></ul></div>
+            <div class="team"><button id="btnTeam2">equipe 02</button><ul id="team2list"></ul></div>
+          </div>
+        </div>
+        <button id="btnStart">Start</button>
+      </div>
+       
+    </div>    
   </body>
+  <script  type="text/javascript" src="/button.js"></script>
   <script  type="text/javascript" src="/game.js"></script>
 </html>

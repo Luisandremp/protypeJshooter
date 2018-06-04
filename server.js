@@ -10,6 +10,110 @@ const io = require('socket.io')(server);
 const PORT = process.env.PORT || 5000;
 
 
+/************************************************************************
+*        Server Set Up
+*************************************************************************/
+app.use('/', express.static(__dirname + '/public'));
+app.get('/', function(req, res){
+  res.sendFile(__dirname+'/index.html');
+});
+/************************************************************************
+*        Starts the server
+*************************************************************************/
+server.listen(PORT, function(){
+  console.log('listening on *:5000');
+  console.log(__dirname+"/index.html")
+});
+
+/************************************************************************
+*        On Connection get events from clients
+*************************************************************************/
+io.on('connection', function(socket) {
+    socket.join('lobby');
+    //socket.to('lobby')
+    socket.emit('room', "lobby", io.sockets.adapter.rooms.lobby.length);
+
+
+    
+    //console.log(io.sockets.adapter.rooms.lobby);
+    //console.log(io.sockets.adapter.rooms.game == null)
+    //console.log(io.sockets.adapter.rooms.lobby.length)
+    //console.log(Object.keys(io.sockets.adapter.rooms).length);
+    //console.log(Array.from(Object.keys(socket.adapter.rooms)).length  );
+
+/**
+**
+** Game server events
+**
+**/
+
+  // on a new client connects create his "player"
+  // Player id = to Socket Id  TO DO: Should change this to an UUID
+  socket.on('new player', function() {
+    console.log("new player")
+    socket.leave('lobby');
+    socket.join('game');
+    socket.emit('room', "game");
+
+    const newPlayer = JSON.parse(JSON.stringify(Player));
+    newPlayer.id = socket.id;
+    players[socket.id] = newPlayer;
+
+    // Send world objects to the clients
+    io.to('game').emit('world', controlPoints);
+
+  });
+
+
+  // on event Movement calculate the direction
+  socket.on('movement', function(data) {
+    const player = players[socket.id] || {};
+
+    // check horizontal direction
+    if (data.left) {
+      player.dirX = -1;
+    }else if (data.right) {
+      player.dirX = 1;
+    }else{
+      player.dirX = 0;
+    }
+
+    // check vertical direction
+    if (data.up) {
+      player.dirY = -1;
+    }else if (data.down) {
+      player.dirY = 1;
+    }else{
+      player.dirY = 0;
+    }
+
+    //check mouse click
+    if (data.click) {
+     fireBullet(data.clickX,data.clickY, socket.id);
+    }
+  });
+
+  // Change Players team
+  socket.on('team', function(t) {
+      players[socket.id].team = t;
+      players[socket.id].healthPoints = 100;
+  });
+
+  // Event on client disconnect  Remove the player from the game
+  socket.on('disconnect', (reason) => {
+    if (players.hasOwnProperty(socket.id)) {
+      delete players[socket.id];
+    }
+  });
+
+});
+
+/************************************************************************
+*************************************************************************
+*******************************GAME SERVER ******************************
+*************************************************************************
+*************************************************************************/
+
 const Player = require('./entity/player.js');
 
 const players = {};
@@ -63,81 +167,7 @@ const controlPoints = new Array();
     y: worldLimits.bottom -50-100
    });
 
-/************************************************************************
-*        Server Set Up
-*************************************************************************/
-app.use('/', express.static(__dirname + '/public'));
-app.get('/', function(req, res){
 
-  res.sendFile(__dirname+'/index.html');
-
-});
-/************************************************************************
-*        Starts the server
-*************************************************************************/
-server.listen(PORT, function(){
-  console.log('listening on *:5000');
-  console.log(__dirname+"/index.html")
-});
-
-
-/************************************************************************
-*        On Connection get events from clients
-*************************************************************************/
-io.on('connection', function(socket) {
-  // on a new client connects create his "player"
-  // Player id = to Socket Id  TO DO: Should change this to an UUID
-  socket.on('new player', function() {
-    const newPlayer = JSON.parse(JSON.stringify(Player));
-    newPlayer.id = socket.id;
-    players[socket.id] = newPlayer;
-
-    // Send world objects to the clients
-    io.sockets.emit('world', controlPoints);
-  });
-
-  // on event Movement calculate the direction
-  socket.on('movement', function(data) {
-    const player = players[socket.id] || {};
-
-    // check horizontal direction
-    if (data.left) {
-      player.dirX = -1;
-    }else if (data.right) {
-      player.dirX = 1;
-    }else{
-      player.dirX = 0;
-    }
-
-    // check vertical direction
-    if (data.up) {
-      player.dirY = -1;
-    }else if (data.down) {
-      player.dirY = 1;
-    }else{
-      player.dirY = 0;
-    }
-
-    //check mouse click
-    if (data.click) {
-     fireBullet(data.clickX,data.clickY, socket.id);
-    }
-  });
-
-  // Change Players team
-  socket.on('team', function(t) {
-      players[socket.id].team = t;
-      players[socket.id].healthPoints = 100;
-  });
-
-  // Event on client disconnect  Remove the player from the game
-  socket.on('disconnect', (reason) => {
-    if (players.hasOwnProperty(socket.id)) {
-      delete players[socket.id];
-    }
-
-  });
-});
 
 /************************************************************************
 *      Functions on repeat Timmer
@@ -145,14 +175,19 @@ io.on('connection', function(socket) {
 //update dynamic objects (player, bullets)
 setInterval(function() {
   moveBullets();
-  movePlayers(); 
-  io.sockets.emit('state', players, bullets);
+  movePlayers();
+  if(io.sockets.adapter.rooms.game != null){
+    io.to("game").emit('state', players, bullets);
+  }
 }, 1000 / 30);
 //update static objects (controlPoints)
 setInterval(function() {
   checkPlayersInPoint();
   // Send world objects to the clients
-  io.sockets.emit('world',controlPoints , teamPoints);
+  if(io.sockets.adapter.rooms.game != null){
+    io.to("game").emit('world',controlPoints , teamPoints);
+  };
+  
 }, 1000 / 2);
 
 
@@ -162,35 +197,36 @@ setInterval(function() {
 *         Create Bullets
 *************************************************************************/
 function fireBullet(x,y,id){
-  //check if is not spectator
-  if (players[id].team != 0) {
-    //check if the player weapon is on cooldown
-    if (players[id].weaponCoolDown+300 < Date.now()) {
-      //last time fired, for CD calculations
-      players[id].weaponCoolDown = Date.now();
+  if (players[id]) {
+    //check if is not spectator
+    if (players[id].team != 0) {
+      //check if the player weapon is on cooldown
+      if (players[id].weaponCoolDown+300 < Date.now()) {
+        //last time fired, for CD calculations
+        players[id].weaponCoolDown = Date.now();
 
-      //get coords for bullet spawn
-      bulletX = players[id]['x'] - x;
-      bulletY = players[id]['y'] - y; 
+        //get coords for bullet spawn
+        bulletX = players[id]['x'] - x;
+        bulletY = players[id]['y'] - y; 
 
-      //create a normalised vector for the direction
-      const long = Math.sqrt(bulletX*bulletX +bulletY*bulletY);
-      const dirX = bulletX/long;
-      const dirY = bulletY/long;
+        //create a normalised vector for the direction
+        const long = Math.sqrt(bulletX*bulletX +bulletY*bulletY);
+        const dirX = bulletX/long;
+        const dirY = bulletY/long;
 
-      //create the bullet object
-      bullets.push({
-          'owner': id,
-          'radius': 5,
-          'creation': Date.now(),
-          'dirX': dirX,
-          'dirY': dirY,
-          'currentX': players[id]['x'],
-          'currentY': players[id]['y'] 
-        });
+        //create the bullet object
+        bullets.push({
+            'owner': id,
+            'radius': 5,
+            'creation': Date.now(),
+            'dirX': dirX,
+            'dirY': dirY,
+            'currentX': players[id]['x'],
+            'currentY': players[id]['y'] 
+          });
+      }
     }
   }
-  
 }
 
 /************************************************************************
