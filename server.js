@@ -443,6 +443,7 @@ function gameOver(){
     io.sockets.connected[socket].join('lobby');// join the room Game
     io.sockets.connected[socket].emit('room', "lobby");
     delete players[socket];
+    newPlayer= JSON.parse(JSON.stringify(Player));
     newPlayer.id = socket;
   }
   refreshLobby();
