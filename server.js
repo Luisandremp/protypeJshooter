@@ -444,11 +444,15 @@ function gameOver(){
     io.sockets.connected[socket].emit('room', "lobby");
     delete players[socket];
     newPlayer.id = socket;
+  }
+  refreshLobby();
+  inGame = false;
+  teamPoints["1"] = 150;
+  teamPoints["2"] = 150;
+  for (p in controlPoints){
+    controlPoints[p].team = 0;
+    controlPoints[p].points = 0;
 
-    refreshLobby();
-    inGame = false;
-    teamPoints["1"] = 150;
-    teamPoints["2"] = 150;
   }
 }
 }
