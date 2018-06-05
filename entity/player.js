@@ -1,5 +1,6 @@
 module.exports = {
 	  'id': "",
+    'name': "",
 	  'team': 0,
 	  'healthPoints': 100,
       'radius': 10,

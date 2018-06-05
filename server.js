@@ -8,6 +8,60 @@ const app = express();
 const server = http.Server(app);
 const io = require('socket.io')(server);
 const PORT = process.env.PORT || 5000;
+const Player = require('./entity/player.js');
+const playersList = new Array();
+const players = {};
+const newPlayer = JSON.parse(JSON.stringify(Player));
+ const bullets = new Array();
+ let inGame = false;
+
+  const worldLimits = {
+    top: 0,
+    left: 0,
+    right: 800,
+    bottom: 600
+  }
+  const teamPoints = {
+    "1": 150,
+    "2": 150
+  };
+
+  /************************************************************************
+  *         Create World Static Objects
+  *************************************************************************/
+  const controlPoints = new Array();
+     controlPoints.push({
+      team: 0,
+      points: 0,
+      width: 50,
+      height: 50,
+      x: worldLimits.left +100,
+      y: worldLimits.top + 100
+     },
+     {
+      team: 0,
+      points: 0,
+      width: 50,
+      height: 50,
+      x: worldLimits.right -50-100,
+      y: worldLimits.top + 100
+     },
+       {
+      team: 0,
+      points: 0,
+      width: 50,
+      height: 50,
+      x: worldLimits.right -50-100,
+      y: worldLimits.bottom -50-100
+     },
+     {
+      team: 0,
+      points: 0,
+      width: 50,
+      height: 50,
+      x: worldLimits.left +100,
+      y: worldLimits.bottom -50-100
+     });
 
 
 /************************************************************************
@@ -31,9 +85,10 @@ server.listen(PORT, function(){
 io.on('connection', function(socket) {
     socket.join('lobby');
     //socket.to('lobby')
-    socket.emit('room', "lobby", io.sockets.adapter.rooms.lobby.length);
-
-
+    socket.emit('room', "lobby");
+    newPlayer.id = socket.id;
+    
+    refreshLobby();
     
     //console.log(io.sockets.adapter.rooms.lobby);
     //console.log(io.sockets.adapter.rooms.game == null)
@@ -46,26 +101,47 @@ io.on('connection', function(socket) {
 ** Game server events
 **
 **/
+  socket.on("team", function(nb, name){
+    newPlayer.team = nb;
+    newPlayer.name = name;
+    if (playersList.indexOf(newPlayer)<0) {
+      playersList.push(newPlayer);
+    }
+    
+    refreshLobby();
+  });
 
   // on a new client connects create his "player"
   // Player id = to Socket Id  TO DO: Should change this to an UUID
-  socket.on('new player', function() {
-    console.log("new player")
-    socket.leave('lobby');
-    socket.join('game');
-    socket.emit('room', "game");
-
-    const newPlayer = JSON.parse(JSON.stringify(Player));
-    newPlayer.id = socket.id;
-    players[socket.id] = newPlayer;
+  socket.on('joinGame', function() {
+    socket.leave('lobby');// leave the lobby
+    socket.join('game');// join the room Game
+    players[socket.id] = newPlayer; // add this player to the list Active players
+    socket.emit('room', "game"); // tell this client he his in game room
 
     // Send world objects to the clients
-    io.to('game').emit('world', controlPoints);
-
+    inGame = true;
+    io.to('game').emit('world', controlPoints);  
+    refreshLobby();
   });
 
+  // Change Players team
+  socket.on('team', function(t) {
+      newPlayer.team = t;
+      newPlayer.healthPoints = 100;
+  });
 
-  // on event Movement calculate the direction
+  // Event on client disconnect  Remove the player from the game
+  socket.on('disconnect', (reason) => {
+    if (players.hasOwnProperty(socket.id)) {
+      delete players[socket.id];
+      playersList.splice(playersList.indexOf(players[socket.id]), 1);
+    }
+    refreshLobby();
+  });
+  
+
+     // on event Movement calculate the direction
   socket.on('movement', function(data) {
     const player = players[socket.id] || {};
 
@@ -93,20 +169,14 @@ io.on('connection', function(socket) {
     }
   });
 
-  // Change Players team
-  socket.on('team', function(t) {
-      players[socket.id].team = t;
-      players[socket.id].healthPoints = 100;
-  });
-
-  // Event on client disconnect  Remove the player from the game
-  socket.on('disconnect', (reason) => {
-    if (players.hasOwnProperty(socket.id)) {
-      delete players[socket.id];
-    }
-  });
-
 });
+
+//Sends info to refresh the Lobby Room
+function refreshLobby(){
+    if (io.sockets.adapter.rooms.lobby != null) {
+      io.to('lobby').emit('refreshLobby', io.sockets.adapter.rooms.lobby.length, playersList );
+    }
+  };
 
 /************************************************************************
 *************************************************************************
@@ -114,80 +184,34 @@ io.on('connection', function(socket) {
 *************************************************************************
 *************************************************************************/
 
-const Player = require('./entity/player.js');
-
-const players = {};
-const bullets = new Array();
-
-const worldLimits = {
-  top: 0,
-  left: 0,
-  right: 800,
-  bottom: 600
-}
-const teamPoints = {
-  "1": 0,
-  "2": 0
-};
-
-/************************************************************************
-*         Create World Static Objects
-*************************************************************************/
-const controlPoints = new Array();
-   controlPoints.push({
-    team: 0,
-    points: 0,
-    width: 50,
-    height: 50,
-    x: worldLimits.left +100,
-    y: worldLimits.top + 100
-   },
-   {
-    team: 0,
-    points: 0,
-    width: 50,
-    height: 50,
-    x: worldLimits.right -50-100,
-    y: worldLimits.top + 100
-   },
-     {
-    team: 0,
-    points: 0,
-    width: 50,
-    height: 50,
-    x: worldLimits.right -50-100,
-    y: worldLimits.bottom -50-100
-   },
-   {
-    team: 0,
-    points: 0,
-    width: 50,
-    height: 50,
-    x: worldLimits.left +100,
-    y: worldLimits.bottom -50-100
-   });
-
-
-
 /************************************************************************
 *      Functions on repeat Timmer
 *************************************************************************/
 //update dynamic objects (player, bullets)
-setInterval(function() {
-  moveBullets();
-  movePlayers();
-  if(io.sockets.adapter.rooms.game != null){
-    io.to("game").emit('state', players, bullets);
+dynamicUpdate = setInterval(function() {
+  if(inGame){
+    moveBullets();
+    movePlayers();
+    if(io.sockets.adapter.rooms.game != null){
+      io.to("game").emit('state', players, bullets);
+    }
   }
 }, 1000 / 30);
 //update static objects (controlPoints)
-setInterval(function() {
-  checkPlayersInPoint();
-  // Send world objects to the clients
-  if(io.sockets.adapter.rooms.game != null){
-    io.to("game").emit('world',controlPoints , teamPoints);
-  };
-  
+worldUpdate = setInterval(function() {
+  if (inGame) {
+    checkPlayersInPoint();
+    teamPoints["1"] -= 1;
+    teamPoints["2"] -= 1;
+
+    // Send world objects to the clients
+    if(io.sockets.adapter.rooms.game != null){
+      io.to("game").emit('world',controlPoints , teamPoints);
+    };
+    if (teamPoints["1"]  <= 0 || teamPoints["2"] <= 0 ) {
+      gameOver();
+    }
+  }
 }, 1000 / 2);
 
 
@@ -401,15 +425,32 @@ function checkPlayersInPoint(){
     if (controlPoints[point].points == 0) {
       controlPoints[point].team = 0;
     }else if (controlPoints[point].team == 1) {
-      teamPoints["1"] += 1;
+      teamPoints["2"] -= 1;
     }else if (controlPoints[point].team == 2) {
-      teamPoints["2"] += 1;
+      teamPoints["1"] -= 1;
     }
     
   }
   
 }
+/************************************************************************
+*         Game Over
+*************************************************************************/
+function gameOver(){
+ if (io.sockets.adapter.rooms.game != null) {
+  for(socket in io.sockets.adapter.rooms.game.sockets){
+    io.sockets.connected[socket].leave('game');// leave the lobby
+    io.sockets.connected[socket].join('lobby');// join the room Game
+    io.sockets.connected[socket].emit('room', "lobby");
+    delete players[socket];
+    newPlayer.id = socket;
 
-
+    refreshLobby();
+    inGame = false;
+    teamPoints["1"] = 150;
+    teamPoints["2"] = 150;
+  }
+}
+}
 
 

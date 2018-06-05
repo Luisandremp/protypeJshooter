@@ -1,5 +1,5 @@
+
 const socket = io();
-let room = "lobby"; //current room
 const objectList = new Array();
 //initialize the movement object
 const movement = {
@@ -97,33 +97,54 @@ document.addEventListener('keyup', function(event) {
 
 // listen for what room we are on
 socket.on('room', function (r) {
-  room = r;
-  enterRoom();
+  enterRoom(r);
 });
+socket.on("refreshLobby", function(nbPlayers, players){
+  $("#nb").load("index.html #nb", function(){
+    $("#nb").html(nbPlayers)
+  });
+  let listP1 = "";
+  let listP2 = "";
+  for (p in players){
+    if (players[p].team == 1) {
+      listP1 += "<li>"+players[p].name+"</li>";
+    }
+    else if (players[p].team == 2) {
+      listP2 += "<li>"+players[p].name+"</li>";
+    }
+    
+  }
+  $("#team1list").load("index.html #team1list", function(){
+    $("#team1list").html(listP1);
+  });
+  $("#team2list").load("index.html #team2list", function(){
+    $("#team2list").html(listP2);
+  });
 
-function enterRoom(){
+
+});
+function enterRoom(room){
   /**
   //If we are on Lobby
   **/
   if (room == "lobby") {
     console.log('im on lobby');
+    menu.style["display"] = "block";
+    canvas.style["display"] = "none";
      //clear frame
-  document.getElementById("btnStart").addEventListener('click', function(event) {
-    console.log("Start");
+     $("#btnStart").click(function(event){
+      console.log("Start");
     //old emition to check conections TODO: change for new lobby code
-    menu.style["display"] = "none";
-    canvas.style["display"] = "block";
-    socket.emit('new player');
+    socket.emit('joinGame');
+     });
+    $("#btnTeam1").click(function(event){
+      socket.emit('team', 1 , $("#nickname").val());
+    });
+    
+    $("#btnTeam2").click(function(event){
+      socket.emit('team', 2, $("#nickname").val());
+    });  
 
-  });
-  document.getElementById("btnTeam1").addEventListener('click', function(event) {
-      console.log("btnTeam1");
-      console.log(event)
-  });
-  document.getElementById("btnTeam2").addEventListener('click', function(event) {
-      console.log("btnTeam2");
-      console.log(event)
-  });
   //example de creation de object 
   //objectList.push(new button("button 2", 100 , 200 , 100, 40));
    
@@ -132,7 +153,8 @@ function enterRoom(){
   **/
   }else{
     console.log('im on Game');
-
+    menu.style["display"] = "none";
+    canvas.style["display"] = "block";
     /**
     *  Recursive Function to send client information
     **/
