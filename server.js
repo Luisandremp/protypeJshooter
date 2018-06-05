@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 5000;
 const Player = require('./entity/player.js');
 const playersList = new Array();
 const players = {};
-const newPlayer = JSON.parse(JSON.stringify(Player));
+let newPlayer = JSON.parse(JSON.stringify(Player));
  const bullets = new Array();
  let inGame = false;
 
@@ -443,6 +443,7 @@ function gameOver(){
     io.sockets.connected[socket].join('lobby');// join the room Game
     io.sockets.connected[socket].emit('room', "lobby");
     delete players[socket];
+    playersList.splice(playersList.indexOf(socket), 1);
     newPlayer= JSON.parse(JSON.stringify(Player));
     newPlayer.id = socket;
   }
