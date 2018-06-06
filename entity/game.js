@@ -312,6 +312,10 @@ module.exports ={
   gameOver: function(){
     clearInterval (this.updateDynamic);
     clearInterval(this.updateWorld);
-    this.RoutingServer.GameOver();
+    thisGame = this;
+    setTimeout(function(){
+      thisGame.RoutingServer.GameOver();
+    }, 3000);
+    
   }//game over
 }// end object
