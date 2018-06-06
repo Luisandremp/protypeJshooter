@@ -149,9 +149,12 @@ io.on('connection', function(socket) {
         delete gameList[0].players[socket.id];
       }
     }
-    if( Object.keys(gameList[0].players).length <= 0){
-      gameList[0].gameOver();
+    if(gameList[0] == null){
+      if( Object.keys(gameList[0].players).length <= 0 ){
+        gameList[0].gameOver();
+      }
     }
+    
     refreshLobby();
   });
   // Change Players team
