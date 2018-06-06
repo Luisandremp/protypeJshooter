@@ -4,7 +4,7 @@ module.exports ={
   RoutingServer: require('../server.js'),
   players: {},
   bullets: [],
-  MAXTEAMPOINTS:15,
+  MAXTEAMPOINTS:150,
   worldLimits: {
       top: 0,
       left: 0,
