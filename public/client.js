@@ -1,6 +1,7 @@
 
 const socket = io();
 const objectList = new Array();
+
 //initialize the movement object
 const movement = {
     up: false,
@@ -11,8 +12,10 @@ const movement = {
     clickX: 0,
     clickY: 0
 };
+
 let players = {};
 let bullets = {};
+
 let worldObjects = new Array();
 let teamPoints ={
   "1": 0,
@@ -134,7 +137,6 @@ function enterRoom(room){
      //clear frame
      $("#btnStart").click(function(event){
       console.log("Start");
-       //old emition to check conections TODO: change for new lobby code
       socket.emit('joinGame');
      });
     $("#btnTeam1").click(function(event){
@@ -149,7 +151,7 @@ function enterRoom(room){
   //objectList.push(new button("button 2", 100 , 200 , 100, 40));
    
   /**
-  //Else = We are in a Game
+  //else = We are in a Game
   **/
   }else{
     console.log('im on Game');
@@ -182,7 +184,7 @@ function enterRoom(room){
 *  Recursive Function to Draw Objects
 **/
 setInterval(function() {
-//clear frame
+// TEst draw button class
 context.clearRect(0, 0, 800, 600);
   for (i in objectList){
     objectList[i].updateState(context);
@@ -214,7 +216,7 @@ context.clearRect(0, 0, 800, 600);
         }
       }
       context.fillRect(worldObjects[obj].x, worldObjects[obj].y, worldObjects[obj].width, worldObjects[obj].height);
-      //  draw progress bar for the quantité de control
+      //  draw progress bar for control points
       context.fillRect(worldObjects[obj].x , worldObjects[obj].y-10, (worldObjects[obj].width/10)*(worldObjects[obj].points), 5);
       context.fill();
     }

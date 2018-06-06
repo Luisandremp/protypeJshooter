@@ -22,6 +22,7 @@ module.exports ={
     *************************************************************************/
   controlPoints: new Array(),
   populateControlPoints: function(){
+    this.controlPoints= new Array();
     this.controlPoints.push(
       {
     team: 0,
@@ -225,6 +226,7 @@ module.exports ={
         
         //check colisions with other players.
         isPlayer = false;
+        /*
         for (otherPlayer in this.players) {
             if (otherPlayer != player) {
               dx = this.players[otherPlayer].x - destinationX;
@@ -236,6 +238,7 @@ module.exports ={
               }
             }
           }
+          */
           //check if the desired destination is available, and apply the new coords
         if (destinationX >= this.worldLimits.left && destinationX <= this.worldLimits.right && !isObj && !isPlayer) {
           this.players[player].x = destinationX;
@@ -243,6 +246,7 @@ module.exports ={
         if (destinationY >= this.worldLimits.top && destinationY <= this.worldLimits.bottom && !isObj && !isPlayer) {
           this.players[player].y = destinationY; 
         }
+
       }
     }
   },

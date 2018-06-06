@@ -28,6 +28,7 @@ server.listen(PORT, function(){
   console.log(__dirname+"/index.html:5000");
 });
 
+//Functions to send game info to the clients 
 exports.updateDynamicObjects = function (players, bullets){
     if(io.sockets.adapter.rooms.game != null){
       io.to("game").emit('state', players, bullets);
@@ -38,16 +39,19 @@ exports.updateWorldObjects = function (controlPoints, teamPoints){
     io.to("game").emit('world',controlPoints , teamPoints);
   };
 }
+// function to finish and destroy a game
 exports.GameOver = function(){
-  for(socket in io.sockets.adapter.rooms.game.sockets){
-    if (io.sockets.connected[socket] == null) { break;}
-    io.sockets.connected[socket].leave('game');// leave the lobby
-    io.sockets.connected[socket].join('lobby');// join the room Game
-    io.sockets.connected[socket].emit('room', "lobby");
-    delete playersList[socket];
-    const newPlayer = JSON.parse(JSON.stringify(Player));
-    newPlayer.id = socket;
-    playersList[socket] = newPlayer;
+  if(io.sockets.adapter.rooms.game != null){
+    for(socket in io.sockets.adapter.rooms.game.sockets){
+      if (io.sockets.connected[socket] == null) { break;}
+      io.sockets.connected[socket].leave('game');// leave the lobby
+      io.sockets.connected[socket].join('lobby');// join the room Game
+      io.sockets.connected[socket].emit('room', "lobby");
+      delete playersList[socket];
+      const newPlayer = JSON.parse(JSON.stringify(Player));
+      newPlayer.id = socket;
+      playersList[socket] = newPlayer;
+    }
   }
    gameList[0]=null;
 }
@@ -75,7 +79,7 @@ io.on('connection', function(socket) {
   //console.log(Object.keys(io.sockets.adapter.rooms).length);
   //console.log(Array.from(Object.keys(socket.adapter.rooms)).length  );
 
-  //layer changes team and applys name
+  //player changes team and applys name
   socket.on("team", function(nb, name){
     playersList[socket.id].team = nb;     
     playersList[socket.id].name = name;
@@ -106,8 +110,6 @@ io.on('connection', function(socket) {
      // add this player to the list Active players
     socket.emit('room', "game"); // tell this client he his in game room
 
-    // Send world objects to the clients
-    io.to('game').emit('world', gameList[0].controlPoints);  
     refreshLobby();
   });
 
@@ -143,6 +145,12 @@ io.on('connection', function(socket) {
   socket.on('disconnect', (reason) => {
     if (playersList.hasOwnProperty(socket.id)) {
       delete playersList[socket.id];
+      if (gameList[0] != null && gameList[0].players[socket.id] != null) {
+        delete gameList[0].players[socket.id];
+      }
+    }
+    if( Object.keys(gameList[0].players).length <= 0){
+      gameList[0].gameOver();
     }
     refreshLobby();
   });
