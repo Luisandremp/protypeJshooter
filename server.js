@@ -43,17 +43,26 @@ exports.updateWorldObjects = function (controlPoints, teamPoints){
 exports.GameOver = function(){
   if(io.sockets.adapter.rooms.game != null){
     for(socket in io.sockets.adapter.rooms.game.sockets){
-      if (io.sockets.connected[socket] == null) { break;}
+      if (io.sockets.connected[socket] == null) { break;}// if there are no more sockets connected Exit loop
+     
+
+      playersList[socket] = JSON.parse(JSON.stringify(Player)); // reset player to the model
+      playersList[socket].id = socket; // give him back his id
+      
       io.sockets.connected[socket].leave('game');// leave the lobby
       io.sockets.connected[socket].join('lobby');// join the room Game
-      io.sockets.connected[socket].emit('room', "lobby");
-      delete playersList[socket];
-      const newPlayer = JSON.parse(JSON.stringify(Player));
-      newPlayer.id = socket;
-      playersList[socket] = newPlayer;
+      io.sockets.connected[socket].emit('room', "lobby"); //tell client he is currently in lobby
+
+      delete gameList[0].players[socket];
+      
     }
   }
-   gameList[0]=null;
+    refreshLobby();
+    console.log("=========================");
+    console.log("=========================");
+    console.log(playersList)
+    console.log("=========================");
+   gameList[0] = null;
 }
 
 /************************************************************************
@@ -90,6 +99,7 @@ io.on('connection', function(socket) {
   socket.on('joinGame', function() {
     // if there are no available games
     if (gameList[0] == null) {
+      console.log("joined a game")
       // create an instance of a Game
       const game = Object.create(Game);
       //add it to the game instance list

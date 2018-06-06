@@ -61,6 +61,10 @@ module.exports ={
   *      Functions on repeat Timmer
   *************************************************************************/
   start: function(){
+    console.log("=========================");
+    console.log("server start");
+    console.log(this.players);
+    console.log("=========================");
     thisGame  = this;
     this.populateControlPoints();
     this.teamPoints[1]= this.MAXTEAMPOINTS;
