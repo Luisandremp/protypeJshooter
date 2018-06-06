@@ -6,7 +6,6 @@ const button = function(text, x, y, width, height) {
     this.clicked = false;
     this.hovered = false;
     this.text = text;
-    thisButton = this;
 
     button.prototype.intersects = function(mouse) {
         const t = 5; //tolerance

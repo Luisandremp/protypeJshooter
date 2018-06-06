@@ -134,8 +134,8 @@ function enterRoom(room){
      //clear frame
      $("#btnStart").click(function(event){
       console.log("Start");
-    //old emition to check conections TODO: change for new lobby code
-    socket.emit('joinGame');
+       //old emition to check conections TODO: change for new lobby code
+      socket.emit('joinGame');
      });
     $("#btnTeam1").click(function(event){
       socket.emit('team', 1 , $("#nickname").val());
