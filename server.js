@@ -1,15 +1,11 @@
 // Dependencies
 const express = require('express');
 const http = require('http');
-const path = require('path');
-const socketIO = require('socket.io');
-
 const app = express();
 const server = http.Server(app);
 const io = require('socket.io')(server);
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 const Player = require('./entity/player.js');
-const Bullet = require('./entity/bullet.js');
 const Game = require('./entity/game.js');
 const gameList = new Array();
 const playersList = {};
@@ -20,55 +16,55 @@ const playersList = {};
 app.use('/', express.static(__dirname + '/public'));
 app.get('/', function(req, res){
   res.sendFile(__dirname+'/index.html');
-});
+});/*
 /************************************************************************
 *        Starts the server
 *************************************************************************/
 server.listen(PORT, function(){
-  console.log(__dirname+"/index.html:5000");
+  console.log(__dirname+"/index.html:"+PORT);
 });
 
 //Functions to send game info to the clients 
-exports.updateDynamicObjects = function (players, bullets){
+exports.updateDynamicObjects = function (players, bullets, minions){
     if(io.sockets.adapter.rooms.game != null){
-      io.to("game").emit('state', players, bullets);
+      io.to("game").emit('state', players, bullets, minions);
      }
 }
-exports.updateWorldObjects = function (controlPoints, teamPoints){
+exports.updateWorldObjects = function (controlPoints, minionFactories, teamPoints, healthPacks, bosses, SpawnArea){
   if(io.sockets.adapter.rooms.game != null){
-    io.to("game").emit('world',controlPoints , teamPoints);
+    io.to("game").emit('world',controlPoints , minionFactories, teamPoints, healthPacks, bosses, SpawnArea);
   };
 }
 // function to finish and destroy a game
 exports.GameOver = function(){
+
+  io.to("game").emit('gameOver');
   if(io.sockets.adapter.rooms.game != null){
     for(socket in io.sockets.adapter.rooms.game.sockets){
       if (io.sockets.connected[socket] == null) { break;}// if there are no more sockets connected Exit loop
-     
 
       playersList[socket] = JSON.parse(JSON.stringify(Player)); // reset player to the model
       playersList[socket].id = socket; // give him back his id
       
       io.sockets.connected[socket].leave('game');// leave the lobby
       io.sockets.connected[socket].join('lobby');// join the room Game
+      
       io.sockets.connected[socket].emit('room', "lobby"); //tell client he is currently in lobby
-
+      
       delete gameList[0].players[socket];
+      io.sockets.connected[socket].disconnect();
       
     }
   }
-    refreshLobby();
-    console.log("=========================");
-    console.log("=========================");
-    console.log(playersList)
-    console.log("=========================");
    gameList[0] = null;
+   refreshLobby();
 }
 
 /************************************************************************
 *        On Connection get events from clients
 *************************************************************************/
 io.on('connection', function(socket) {
+  console.log(socket.id," has joined the server")
   socket.join('lobby');// this client joins room lobby
   socket.emit('room', "lobby"); // tell this client he is on lobby
   
@@ -111,6 +107,15 @@ io.on('connection', function(socket) {
     }else{
       //if there is an available game add the player to that game
       gameList[0].players[socket.id] = playersList[socket.id];
+            // add spawn point
+            const player = gameList[0].players[socket.id];
+            if (player.team == 1) {
+              player.x = gameList[0].worldLimits.left+50
+              player.y = gameList[0].worldLimits.bottom-50
+            } else if (player.team  == 2)  {
+              player.x = gameList[0].worldLimits.right-50
+              player.y = gameList[0].worldLimits.top+50
+            }
     }
 
 
@@ -173,6 +178,13 @@ io.on('connection', function(socket) {
     playersList[socket.id].healthPoints = 100;
   });
 
+  socket.on('power',function (interfaceInput) {  
+    gameList[0].activatePower(socket.id, interfaceInput.clickX, interfaceInput.clickY);
+  });
+
+  socket.on('choosePower',function (power) { 
+   gameList[0].choosePower(socket.id, power);
+ })
 });
 
 //Sends info to refresh the Lobby Room

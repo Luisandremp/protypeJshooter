@@ -1,6 +1,30 @@
-
+class Camera{
+  constructor(xOffset,yOffset,){
+      this.xOffset = xOffset;
+      this.yOffset = yOffset;
+  }
+  centerOnObject(centerOfCamera){
+    if(centerOfCamera.x-canvas.width/2 > 0 && centerOfCamera.x+canvas.width/2 < 1500){
+      this.xOffset = centerOfCamera.x-canvas.width/2;
+    }else if(centerOfCamera.x-canvas.width/2 <= 0){
+      this.xOffset = 0;
+    }    else if(centerOfCamera.x+canvas.width/2 >= 1500){
+      this.xOffset = 1500-canvas.width;
+    }
+    if(centerOfCamera.y-canvas.height/2 > 0 && centerOfCamera.y+canvas.height/2 < 1500){
+      this.yOffset = centerOfCamera.y-canvas.height/2;
+    } else if(centerOfCamera.y-canvas.height/2 <= 0){
+      this.yOffset = 0;
+    }else if(centerOfCamera.y+canvas.height/2 >= 1500){
+      this.yOffset = 1500-canvas.height;
+    }      
+  }
+}
 const socket = io();
-const objectList = new Array();
+//const objectList = new Array();
+
+//instantitate camera
+const camera = new Camera(0,0);
 
 //initialize the movement object
 const movement = {
@@ -15,12 +39,17 @@ const movement = {
 
 let players = {};
 let bullets = {};
+let minions = {};
+let bosses = {};
+let myCharacter = {};
 
-let worldObjects = new Array();
+let controlPoints = new Array();
 let teamPoints ={
   "1": 0,
   "2": 0
 };
+let healthPacks= new Array();
+
 
 
 const canvas = document.getElementById('canvas');
@@ -41,16 +70,14 @@ context.mouse = {
 canvas.addEventListener("mousemove", function(e) {
       context.mouse.x = e.offsetX;
       context.mouse.y = e.offsetY;
-      movement.clickX = context.mouse.x;
-      movement.clickY = context.mouse.y;
+      movement.clickX = context.mouse.x+camera.xOffset;
+      movement.clickY = context.mouse.y+camera.yOffset;
 });
-
 canvas.addEventListener("mousedown", function(e) {
     context.mouse.clicked = !context.mouse.down;
     context.mouse.down = true;
     movement.click = context.mouse.clicked;
 });
-
 canvas.addEventListener("mouseup", function(e) {
     context.mouse.down = false;
     context.mouse.clicked = false;
@@ -95,6 +122,9 @@ document.addEventListener('keyup', function(event) {
       team = 2;
       socket.emit('team', team);
       break;
+      case 32: // space
+      socket.emit('power', movement);
+    break;
   }
 });
 
@@ -131,12 +161,10 @@ function enterRoom(room){
   //If we are on Lobby
   **/
   if (room == "lobby") {
-    console.log('im on lobby');
     menu.style["display"] = "block";
     canvas.style["display"] = "none";
      //clear frame
      $("#btnStart").click(function(event){
-      console.log("Start");
       socket.emit('joinGame');
      });
     $("#btnTeam1").click(function(event){
@@ -154,12 +182,12 @@ function enterRoom(room){
   //else = We are in a Game
   **/
   }else{
-    console.log('im on Game');
     menu.style["display"] = "none";
     canvas.style["display"] = "block";
     /**
     *  Recursive Function to send client information
     **/
+   
     setInterval(function() {
       socket.emit('movement', movement);
     }, 1000 / 30);
@@ -167,43 +195,106 @@ function enterRoom(room){
     /**
     * - Listen for world Objects update
     **/
-    socket.on('world', function (objs , tp) {
-      worldObjects = objs;
+    socket.on('world', function (objs , tp, hp, b) {
+      controlPoints = objs;
       teamPoints = (tp === undefined) ? teamPoints : tp;
+      healthPacks = hp;
+      bosses = b;
     });
     /**
     * - Listen for dynamic objects update
     **/
-    socket.on('state', function(p, b) {
+    socket.on('state', function(p, b, m) {
       players = p;
       bullets = b;
+      minions = m;
+
+      for(id in players) {
+        if(id == socket.id){
+          myCharacter = players[id];
+        }
+        
+      }
     });
+
+
+function drawBackground(){
+  const img = new Image();
+  img.src = "./imgs/hex.png";
+  imgSize = 400;
+  worldSize = 1500;
+  iteration = Math.ceil(worldSize/imgSize);
+  for (let indexX = 0; indexX < iteration; indexX++) {
+    for (let indexY = 0; indexY < iteration; indexY++) {
+      context.drawImage(img, (imgSize*indexX)-camera.xOffset, (imgSize*indexY)-camera.yOffset);
+    } 
   }
 }
-/**
-*  Recursive Function to Draw Objects
-**/
-setInterval(function() {
-// TEst draw button class
-context.clearRect(0, 0, 800, 600);
-  for (i in objectList){
-    objectList[i].updateState(context);
-    objectList[i].draw(context);
-  }
   /**
-  * - Draw Game
+  *  Recursive Function to Draw Objects
   **/
+  setInterval(function() { 
+    /*
+    // TEst draw button class
+      for (i in objectList){
+        objectList[i].updateState(context);
+        objectList[i].draw(context);
+      }
+    */
 
-  // draw Text with team points
-  context.font = '25px serif';
-  context.fillText('team 1: '+teamPoints["1"]+' team 2: '+teamPoints["2"], 300, 28);
+   camera.centerOnObject(myCharacter);
 
-  // draw control points for each control point check it is controled by a team and change its color then draw it
-  for (const obj in worldObjects) {
-      if (worldObjects[obj].points == 0) {
-        context.fillStyle = 'gray';
-      }else{
-        switch (worldObjects[obj].team) {
+    /**
+    * - Draw Game
+    **/
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    drawBackground();
+
+     
+    
+ 
+    // draw Text with team points
+    chooseColor(1);
+    context.fillRect(10, 10, (((canvas.width/2)-10)/500)*(teamPoints["1"]), 10);
+    context.save();
+    chooseColor(2);
+    context.translate(canvas.width,0);
+    context.rotate((Math.PI/180)*180);  
+    context.fillRect(10, -20, (((canvas.width/2)-10)/500)*(teamPoints["2"]), 10);
+    context.restore();
+
+    context.fillStyle = 'black';
+    context.font = '10px sans-serif';
+    context.fillText(teamPoints["1"], 10, 30);
+    context.fillText(teamPoints["2"], canvas.width-30, 30);
+
+    // draw control points for each control point check it is controled by a team and change its color then draw it
+    for (const key in controlPoints) {
+     controlPoint = controlPoints[key];
+     chooseColor(controlPoint.team);
+      context.fillRect(controlPoint.x-camera.xOffset, controlPoint.y-camera.yOffset, controlPoint.width, controlPoint.height);
+      //  draw progress bar for control points
+      chooseColor(controlPoint.conqueringTeam);
+      context.fillRect(controlPoint.x-camera.xOffset , controlPoint.y-10-camera.yOffset, (controlPoint.width/10)*(controlPoint.points), 5);
+    }
+  
+      // Draw each player with the apropriate team color
+      drawCircles(players, true)
+      //Draw Bullets
+      drawCircles(bullets, false)
+      //Draw Minions
+      drawCircles(minions, false)
+      //Draw Bosses
+      drawCircles(bosses, false);
+      drawCircleStroke(bosses);
+      drawPointsCircleStroke(controlPoints);
+    
+      
+      //Draw healthPacks
+      for (keyHP in healthPacks) {
+        pack = healthPacks[keyHP];
+          
+        switch (pack.team) {
           case 1:
             context.fillStyle = 'green';
             break;
@@ -214,40 +305,63 @@ context.clearRect(0, 0, 800, 600);
             context.fillStyle = 'gray';
             break;
         }
+        context.fillRect(pack.currentX-camera.xOffset , (pack.currentY-camera.yOffset)+(pack.radius/4), pack.radius, pack.radius/2);
+        context.fillRect((pack.currentX-camera.xOffset)+(pack.radius/4), pack.currentY-camera.yOffset, pack.radius/2, pack.radius);
       }
-      context.fillRect(worldObjects[obj].x, worldObjects[obj].y, worldObjects[obj].width, worldObjects[obj].height);
-      //  draw progress bar for control points
-      context.fillRect(worldObjects[obj].x , worldObjects[obj].y-10, (worldObjects[obj].width/10)*(worldObjects[obj].points), 5);
-      context.fill();
+    },  1000 / 60);
+  }
+  function drawCircleStroke(list, isplayer){
+    for (const key in list) {
+      item = list[key];
+      chooseColor(item.team);
+      
+      context.beginPath();
+      const x = item.x-camera.xOffset;
+      const y = item.y-camera.yOffset;
+           
+      context.arc(x, y, item.area+5, 0, 2 * Math.PI);
+      context.stroke();
     }
+  }
+  function drawPointsCircleStroke(list, isplayer){
+    for (const key in list) {
+      item = list[key];
+      chooseColor(item.team);
+      
+      context.beginPath();
+      const x = item.x-camera.xOffset+item.width/2;
+      const y = item.y-camera.yOffset+item.height/2;
+           
+      context.arc(x, y, item.area+5, 0, 2 * Math.PI);
+      context.stroke();
+    }
+  }
+  function drawCircles(list, isplayer){
+    for (const key in list) {
+      item = list[key];
+      chooseColor(item.team);
+      
+      context.beginPath();
+      context.arc(item.x-camera.xOffset, item.y-camera.yOffset, item.radius, 0, 2 * Math.PI);
+      context.fill();
 
-    // Draw each player with the apropriate team color
-    for (const id in players) {
-      const player = players[id];
-      switch (player.team) {
-        case 1:
-          context.fillStyle = 'green';
-          break;
-        case 2:
-          context.fillStyle = 'red';
-          break;
-        default:
-          context.fillStyle = 'gray';
-          break;
+      if (isplayer) {
+        // draw health bar over the player
+        context.fillRect(item.x-item.radius-camera.xOffset , item.y-item.radius-10-camera.yOffset, ((item.radius*2)/100)*(item.healthPoints), 5);
       }
-      context.beginPath();
-      context.arc(player.x, player.y, 15, 0, 2 * Math.PI);
-      // draw health bar over the player
-      context.fillRect(player.x-15 , player.y-25, (30/100)*(player.healthPoints), 5);
-      context.fill();
     }
-
-    //Draw Bullets
-    context.fillStyle = 'black';
-    for (const bullet in bullets) {
-      context.beginPath();
-      context.arc(bullets[bullet].currentX, bullets[bullet].currentY, 5, 0, 2 * Math.PI);
-      context.fill();
+  }
+  function chooseColor(team){
+    switch (team) {
+      case 1:
+        context.fillStyle = 'green';
+        break;
+      case 2:
+        context.fillStyle = 'red';
+        break;
+      default:
+        context.fillStyle = 'gray';
+        break;
     }
-
-},  1000 / 30);
+  }
+}

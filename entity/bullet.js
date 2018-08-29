@@ -1,9 +1,13 @@
 module.exports = {
+  lifetime: 1000,
   'owner': "",
+  'team': "",
   'radius': 5,
-  'creation': Date.now(),
+  'speed': 15,
+  damage: 15,
+  'creation': 0,
   'dirX': "dirX",
   'dirY': "dirY",
-  'currentX': "players[id]['x']",
-  'currentY': "players[id]['y']" 
+  'x': "players[id]['x']",
+  'y': "players[id]['y']" 
 };
