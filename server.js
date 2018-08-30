@@ -91,6 +91,7 @@ io.on('connection', function(socket) {
     refreshLobby(); //refresh lobby because a player has a new name and team
   });
 
+
   // Player id = to Socket Id  TO DO: Should change this to an UUID
   socket.on('joinGame', function() {
     // if there are no available games
@@ -128,6 +129,11 @@ io.on('connection', function(socket) {
     refreshLobby();
   });
 
+  socket.on('forceDisconnect', function() {
+    io.sockets.connected[socket.id].disconnect();
+    refreshLobby();
+  });
+
   // on event Movement calculate the direction
   socket.on('movement', function(data) {
     if (gameList[0] != null && gameList[0].players[socket.id] != null) {
@@ -157,7 +163,8 @@ io.on('connection', function(socket) {
   });
   
   // Event on client disconnect  Remove the player from the game
-  socket.on('disconnect', (reason) => {
+  socket.on('disconnect', () => {
+    console.log("disconnecting: ",socket.id)
     if (playersList.hasOwnProperty(socket.id)) {
       delete playersList[socket.id];
       if (gameList[0] != null && gameList[0].players[socket.id] != null) {
