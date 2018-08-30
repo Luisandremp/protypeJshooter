@@ -1,4 +1,5 @@
 module.exports ={
+  startTimeAsPower: 0, // to calculate statistics of what power most used
   Player: require('./player.js'),
   Bullet: require('./bullet.js'),
   Minion: require('./minion.js'),
@@ -144,6 +145,8 @@ module.exports ={
   start: function(){
     thisGame  = this;
     
+    
+
     this.teamPoints[1]= this.MAXTEAMPOINTS;
     this.teamPoints[2]= this.MAXTEAMPOINTS;
 
@@ -193,7 +196,10 @@ module.exports ={
         player.x = this.worldLimits.right-50
         player.y = this.worldLimits.top+50
       }
+      this.calculateTimeAsPower(player.id, player.power)
     }
+
+
   },
   isPaused: true,
   togglePause(){
@@ -335,15 +341,38 @@ module.exports ={
   /**
    * choose power
    */
+  calculateTimeAsPower(playerId){
+    const player = this.players[playerId];
+
+    switch (player.power) {
+      case 1:
+      player.power1 +=  (Date.now() -this.startTimeAsPower)
+      this.startTimeAsPower =  Date.now();
+        break;
+        case 2:
+      player.power2 +=  (Date.now() -this.startTimeAsPower); 
+      this.startTimeAsPower =  Date.now();
+        break;
+        case 3:
+      player.power3 +=  (Date.now() -this.startTimeAsPower) ;
+      this.startTimeAsPower =  Date.now();
+        break;
+    
+      default:
+        break;
+    }
+    this.startTimeAsPower 
+  },
   choosePower: function(playerid, power){
     if (this.players[playerid] && !this.players[playerid].powerIsActive) {
       //check if is not spectator
-
+      
       if (this.players[playerid].team == 1) {
         const dx = player.x - this.worldLimits.left;
         const dy = player.y -this.worldLimits.bottom;
         const distance = Math.sqrt(dx * dx + dy * dy);
         if (distance<this.spawnAreas[0].area) {
+          this.calculateTimeAsPower(playerid);
           this.players[playerid].power = power;
         }
       } else if (this.players[playerid].team == 2){
@@ -352,6 +381,7 @@ module.exports ={
         const dy = player.y -this.worldLimits.top;
         const distance = Math.sqrt(dx * dx + dy * dy);
         if (distance<this.spawnAreas[0].area) {
+          this.calculateTimeAsPower(playerid);
           this.players[playerid].power = power;
         }
         

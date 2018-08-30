@@ -4,11 +4,13 @@ const http = require('http');
 const app = express();
 const server = http.Server(app);
 const io = require('socket.io')(server);
+const axios = require('axios');
 const PORT = process.env.PORT || 3000;
 const Player = require('./entity/player.js');
 const Game = require('./entity/game.js');
 const gameList = new Array();
 const playersList = {};
+
 
 /************************************************************************
 *        Server Set Up
@@ -37,7 +39,7 @@ exports.updateWorldObjects = function (controlPoints, minionFactories, teamPoint
 }
 // function to finish and destroy a game
 exports.GameOver = function(){
-
+  sendAllGameInfo(gameList[0].players, false);
   io.to("game").emit('gameOver');
   if(io.sockets.adapter.rooms.game != null){
     for(socket in io.sockets.adapter.rooms.game.sockets){
@@ -75,6 +77,9 @@ io.on('connection', function(socket) {
   }else{
     console.log("Player with this socket already exists"); //alert me that somthings wrong and the player already exists
   }
+  socket.on("userID", function(userId){
+    playersList[socket.id].userId = userId;
+  })
   refreshLobby(); // updates the info of the lobby on all clients (because there is a new player)
   
   //socket.to('lobby')
@@ -105,18 +110,22 @@ io.on('connection', function(socket) {
       gameList[0].players[socket.id] = playersList[socket.id];
       //start the game
       gameList[0].start();
+      
+      sendAllGameInfo(gameList[0].players, false);
+      
     }else{
       //if there is an available game add the player to that game
       gameList[0].players[socket.id] = playersList[socket.id];
-            // add spawn point
-            const player = gameList[0].players[socket.id];
-            if (player.team == 1) {
-              player.x = gameList[0].worldLimits.left+50
-              player.y = gameList[0].worldLimits.bottom-50
-            } else if (player.team  == 2)  {
-              player.x = gameList[0].worldLimits.right-50
-              player.y = gameList[0].worldLimits.top+50
-            }
+        // add spawn point
+        const player = gameList[0].players[socket.id];
+        if (player.team == 1) {
+          player.x = gameList[0].worldLimits.left+50
+          player.y = gameList[0].worldLimits.bottom-50
+        } else if (player.team  == 2)  {
+          player.x = gameList[0].worldLimits.right-50
+          player.y = gameList[0].worldLimits.top+50
+        }
+        sendAllGameInfo(gameList[0].players, false);
     }
 
 
@@ -168,6 +177,7 @@ io.on('connection', function(socket) {
     if (playersList.hasOwnProperty(socket.id)) {
       delete playersList[socket.id];
       if (gameList[0] != null && gameList[0].players[socket.id] != null) {
+        sendAllGameInfo(gameList[0].players, false);
         delete gameList[0].players[socket.id];
       }
     }
@@ -200,6 +210,55 @@ function refreshLobby(){
     io.to('lobby').emit('refreshLobby', io.sockets.adapter.rooms.lobby.length, playersList);
   }
 };
+
+function sendAllGameInfo(playerList, endgame) {
+
+  const players = []
+  const gameObject={};
+  gameObject.game = {
+		"winningTeam": 0,
+		"timeElapsed": 0,
+		"dateOfTheGame": Date.now()
+  }
+  for (const key in playerList) {
+    if (playerList.hasOwnProperty(key)) {
+      const player = playerList[key];
+
+      const newPlayerInfo= {
+        "team": player.team,
+        "playersKilled": 0,
+        "deaths": 0,
+        "minionsKilled": 0,
+        "towerContribution": 0,
+        "timePlayed": 0,
+        "power1":0,
+        "power2":0,
+        "power3":0,
+        "quitBeforeEndGame": !endgame,
+			  "fkPlayers": player.userId
+      }
+      
+    players.push(newPlayerInfo);
+    }
+  }
+  
+
+  gameObject.players = players;
+
+
+
+  axios.post('http://localhost:5000/statistics/newGameStatistics', gameObject)
+  .then(function (response) {
+    if (gameList[0] != null) {
+      gameList[0].gameId = response.data[0].gameId;
+    }
+    
+  })
+  .catch(function (error) {
+    console.log(error);
+  });
+  
+}
 
 
 
