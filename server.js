@@ -10,6 +10,7 @@ const Player = require('./entity/player.js');
 const Game = require('./entity/game.js');
 const gameList = new Array();
 const playersList = {};
+const SERVERWEB = "http://localhost:5000";
 
 
 /************************************************************************
@@ -39,7 +40,6 @@ exports.updateWorldObjects = function (controlPoints, minionFactories, teamPoint
 }
 // function to finish and destroy a game
 exports.GameOver = function(){
-  sendAllGameInfo(gameList[0].players, false);
   io.to("game").emit('gameOver');
   if(io.sockets.adapter.rooms.game != null){
     for(socket in io.sockets.adapter.rooms.game.sockets){
@@ -111,8 +111,6 @@ io.on('connection', function(socket) {
       //start the game
       gameList[0].start();
       
-      sendAllGameInfo(gameList[0].players, false);
-      
     }else{
       //if there is an available game add the player to that game
       gameList[0].players[socket.id] = playersList[socket.id];
@@ -125,7 +123,6 @@ io.on('connection', function(socket) {
           player.x = gameList[0].worldLimits.right-50
           player.y = gameList[0].worldLimits.top+50
         }
-        sendAllGameInfo(gameList[0].players, false);
     }
 
 
@@ -177,7 +174,6 @@ io.on('connection', function(socket) {
     if (playersList.hasOwnProperty(socket.id)) {
       delete playersList[socket.id];
       if (gameList[0] != null && gameList[0].players[socket.id] != null) {
-        sendAllGameInfo(gameList[0].players, false);
         delete gameList[0].players[socket.id];
       }
     }
@@ -211,56 +207,157 @@ function refreshLobby(){
   }
 };
 
-function sendAllGameInfo(playerList, endgame) {
+exports.sendAllGameInfo = function(endgame) {
+  if (gameList[0] != null) {
+    let gameObject={}; // object to send to the server
+    const players = []; // player list to add to the statistics
+    let  newPlayerInfo = {}; // temporary object to create players to the list
+    const playerList = gameList[0].players;
 
-  const players = []
-  const gameObject={};
-  gameObject.game = {
-		"winningTeam": 0,
-		"timeElapsed": 0,
-		"dateOfTheGame": Date.now()
-  }
-  for (const key in playerList) {
-    if (playerList.hasOwnProperty(key)) {
-      const player = playerList[key];
 
-      const newPlayerInfo= {
-        "team": player.team,
-        "playersKilled": 0,
-        "deaths": 0,
-        "minionsKilled": 0,
-        "towerContribution": 0,
-        "timePlayed": 0,
-        "power1":0,
-        "power2":0,
-        "power3":0,
-        "quitBeforeEndGame": !endgame,
-			  "fkPlayers": player.userId
+    if (gameList[0].statistics == null) { // if first time in this game create it;
+      //start the game object
+      gameObject.game = {
+        "winningTeam": 0,
+        "timeElapsed": 0,
+        "dateOfTheGame": Date.now()
+      }
+
+      axios.post(SERVERWEB+'/statistics/newGameStatistics', gameObject)
+      .then(function (response) {
+        gameObject.game.id = response.data[0].gameId;
+        initPlayers();
+      })
+      .catch(function (error) {
+        console.log(error);
+      });
+      
+      function initPlayers(){
+        //create the list of player all initialized
+        for (const key in playerList) {
+          if (playerList.hasOwnProperty(key)) {
+            const player = playerList[key];
+            player.timeStartPlaying = Date.now();// to have a baseline to count the time played
+            player.powerHistory = {   // to have a baseline to count time played has character
+              timeSinceLastTest:  Date.now(),
+              power: player.power
+            }          
+
+            newPlayerInfo= {};
+            newPlayerInfo.team = player.team;
+            newPlayerInfo.playersKilled = 0;
+            newPlayerInfo.deaths = 0
+            newPlayerInfo.minionsKilled = 0;
+            newPlayerInfo.towerContribution = 0;
+            newPlayerInfo.timePlayed = 0;
+            newPlayerInfo.power1 = 0;
+            newPlayerInfo.power2 = 0
+            newPlayerInfo.power3 = 0;
+            newPlayerInfo.quitBeforeEndGame = !endgame;
+            newPlayerInfo.fkPlayers = player.userId;
+            newPlayerInfo.fkMatches = gameObject.game.id;
+            newPlayerInfo.socket = key;
+
+            player.statistics = newPlayerInfo;
+            players.push(newPlayerInfo);
+          }
+        }
       }
       
-    players.push(newPlayerInfo);
+      gameObject.players = players;
+      gameList[0].statistics = gameObject;
+      console.log("Creation de les statistics initiale")
+
+
+    } else {
+
+      //mise a jour du match
+      gameObject = gameList[0].statistics;
+      gameObject.game.timeElapsed = ( Date.now() - gameObject.game.dateOfTheGame);
+      if(gameList[0].teamPoints[1]>gameList[0].teamPoints[2]){
+        gameObject.game.winningTeam = 1;
+      }else if(gameList[0].teamPoints[1]<gameList[0].teamPoints[2]){
+        gameObject.game.winningTeam = 2;
+      }else{
+        gameObject.game.winningTeam = 0;
+      }
+
+      //mise a jour des avatars
+      for (const key in playerList) {
+        if (playerList.hasOwnProperty(key)) {
+          
+          const player = playerList[key];
+          let exists = false;
+          for (let index = 0; index < gameObject.players.length; index++) {
+            const playerCreated = gameObject.players[index];
+          if (playerCreated.socket == key) { exists=true;}
+          };
+          if (exists) {
+            newPlayerInfo= {};
+            newPlayerInfo.team =player.statistics.team;
+            newPlayerInfo.playersKilled = player.statistics.playersKilled;
+            newPlayerInfo.deaths = player.statistics.deaths;
+            newPlayerInfo.minionsKilled = player.statistics.minionsKilled;
+            newPlayerInfo.towerContribution = player.statistics.towerContribution;
+            newPlayerInfo.timePlayed = (Date.now() - player.timeStartPlaying);
+            newPlayerInfo.power1 = calculateTimeAsPower(1, player);
+            newPlayerInfo.power2 = calculateTimeAsPower(2, player);
+            newPlayerInfo.power3 = calculateTimeAsPower(3, player);
+            
+
+            newPlayerInfo.quitBeforeEndGame = !endgame;
+            newPlayerInfo.socket = key;
+            newPlayerInfo.fkPlayers = player.userId;
+            newPlayerInfo.fkMatches = gameObject.game.id;
+             
+          }else{
+            player.timeStartPlaying = Date.now();// to have a baseline to count the time played
+            player.powerHistory = {
+              timeSinceLastTest:  Date.now(),
+            }
+            
+
+
+            newPlayerInfo= {};
+            newPlayerInfo.team = player.team;
+            newPlayerInfo.playersKilled = 0;
+            newPlayerInfo.deaths = 0
+            newPlayerInfo.minionsKilled = 0;
+            newPlayerInfo.towerContribution = 0;
+            newPlayerInfo.timePlayed = 0;
+            newPlayerInfo.power1 = 0;
+            newPlayerInfo.power2 = 0
+            newPlayerInfo.power3 = 0;
+            newPlayerInfo.quitBeforeEndGame = !endgame;
+            newPlayerInfo.fkPlayers = player.userId;
+            newPlayerInfo.socket = key;
+
+          }
+        }
+      gameList[0].players[key].statistics = newPlayerInfo;
+      players.push(newPlayerInfo);
+      }
+      gameObject.players = players;
+      gameList[0].statistics = gameObject;
+
+      axios.post(SERVERWEB+'/statistics/updateGameStatistics', gameObject)
+      .then(function (response) {
+      })
+      .catch(function (error) {
+        console.log(error);
+      });
     }
   }
-  
-
-  gameObject.players = players;
-
-
-
-  axios.post('http://localhost:5000/statistics/newGameStatistics', gameObject)
-  .then(function (response) {
-    if (gameList[0] != null) {
-      gameList[0].gameId = response.data[0].gameId;
-    }
-    
-  })
-  .catch(function (error) {
-    console.log(error);
-  });
-  
 }
 
-
-
-
-
+calculateTimeAsPower = function (power, player){
+    if (player.powerHistory.power == power ) {
+      player.statistics['power'+power] += Date.now() -player.powerHistory.timeSinceLastTest;
+      player.powerHistory.timeSinceLastTest =Date.now();
+    }
+    const time = player.statistics['power'+power];
+    if(player.power != player.powerHistory.power){
+      player.powerHistory.power = player.power;
+    }
+    return  time;        
+}

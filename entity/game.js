@@ -15,8 +15,8 @@ module.exports ={
   worldLimits: {
       top: 0,
       left: 0,
-      right: 3000,
-      bottom: 3000
+      right: 2500,
+      bottom: 2500
     },
   teamPoints:{
       "1": 0,
@@ -48,8 +48,8 @@ module.exports ={
       y: 0
     };
     const extraDistance = 150;
-    const distanceFromCenter = this.Boss.area+this.Boss.radius+controlPoint.width+controlPoint.area/2+extraDistance;
-    const distanceFromBorder = extraDistance+controlPoint.area+controlPoint.width;
+    const distanceFromCenter = this.Boss.area+this.Boss.radius+controlPoint.width+extraDistance;
+    const distanceFromBorder = controlPoint.area+controlPoint.width+extraDistance;
 
     const cp1 = JSON.parse(JSON.stringify(controlPoint));
     cp1.x = (this.worldLimits.right/2) - distanceFromCenter;
@@ -196,9 +196,7 @@ module.exports ={
         player.x = this.worldLimits.right-50
         player.y = this.worldLimits.top+50
       }
-      this.calculateTimeAsPower(player.id, player.power)
     }
-
 
   },
   isPaused: true,
@@ -229,6 +227,8 @@ module.exports ={
         thisGame.checkHeathPackLifetime();
         thisGame.teamPoints[1] -= 1;
         thisGame.teamPoints[2] -= 1;
+
+        thisGame.RoutingServer.sendAllGameInfo(false);
 
         // Send world objects to the clients
         thisGame.RoutingServer.updateWorldObjects(thisGame.controlPoints, thisGame.minionFactories, thisGame.teamPoints, thisGame.healthPacks, thisGame.bosses, thisGame.spawnAreas);
@@ -317,6 +317,8 @@ module.exports ={
     newbullet.x = boss['x'];
     newbullet.y = boss['y'];
     newbullet.speed = 8;
+    newbullet.radius = 8;
+    newbullet.damage = 25;
 
    this.bullets.push(newbullet);
     }
@@ -338,54 +340,34 @@ module.exports ={
    this.bullets.push(newbullet);
     }
   },
+
   /**
    * choose power
    */
-  calculateTimeAsPower(playerId){
-    const player = this.players[playerId];
-
-    switch (player.power) {
-      case 1:
-      player.power1 +=  (Date.now() -this.startTimeAsPower)
-      this.startTimeAsPower =  Date.now();
-        break;
-        case 2:
-      player.power2 +=  (Date.now() -this.startTimeAsPower); 
-      this.startTimeAsPower =  Date.now();
-        break;
-        case 3:
-      player.power3 +=  (Date.now() -this.startTimeAsPower) ;
-      this.startTimeAsPower =  Date.now();
-        break;
-    
-      default:
-        break;
-    }
-    this.startTimeAsPower 
-  },
   choosePower: function(playerid, power){
-    if (this.players[playerid] && !this.players[playerid].powerIsActive) {
+   
+    const player = this.players[playerid];
+    if (player && !player.powerIsActive) {
+
+      console.log(player.id);
       //check if is not spectator
-      
-      if (this.players[playerid].team == 1) {
+      if (player.team == 1) { 
         const dx = player.x - this.worldLimits.left;
         const dy = player.y -this.worldLimits.bottom;
         const distance = Math.sqrt(dx * dx + dy * dy);
         if (distance<this.spawnAreas[0].area) {
-          this.calculateTimeAsPower(playerid);
-          this.players[playerid].power = power;
+          player.power = power;
         }
-      } else if (this.players[playerid].team == 2){
-        
+      } else if (player.team == 2){
         const dx = player.x - this.worldLimits.right;
         const dy = player.y -this.worldLimits.top;
         const distance = Math.sqrt(dx * dx + dy * dy);
         if (distance<this.spawnAreas[0].area) {
-          this.calculateTimeAsPower(playerid);
-          this.players[playerid].power = power;
+          player.power = power;
         }
         
       }
+      
     }
   },
    /************************************************************************
@@ -393,7 +375,8 @@ module.exports ={
   *************************************************************************/
   activatePower: function(id, mouseX, mouseY){
     if (this.players[id]) {
-      player = this.players[id];
+      
+      const player = this.players[id];
       //check if is not spectator
       if (player.team != 0) {
         switch (player.power) {
@@ -523,10 +506,13 @@ module.exports ={
   ********************************************************************** */
   avatarTakeDamage: function(player, dmg){
     player.healthPoints -= dmg;
+
     if (player.healthPoints <= 0) {
-      //player.team = 0;
+      this.players[player.id].statistics.deaths++;
+
       player.healthPoints =100;
       player.respawnTime = Date.now();
+
       if (player.team == 1) {
         player.x = this.worldLimits.left+30;
         player.y = this.worldLimits.bottom-30;
@@ -534,8 +520,9 @@ module.exports ={
         player.x = this.worldLimits.right-30;
         player.y = this.worldLimits.top+30;
       }
-      
+     return true; 
     }
+    return false;
   },
   /************************************************************************
   *         Make Bullets Move
@@ -575,7 +562,12 @@ module.exports ={
               if ( bullet.team != player.team &&  bullet.team != 0 && player.team  != 0 ){
                 if (distance < player.radius + bullet.radius) {
                   //Colision with other Players
-                  this.avatarTakeDamage(player, bullet.damage)
+                  
+                  if (this.avatarTakeDamage(player, bullet.damage)) {
+                    if (this.players[bullet.owner] != null) {
+                      this.players[bullet.owner].statistics.playersKilled++;
+                    }
+                  }
                   this.bullets.splice(key, 1);
                   return;
                 }
@@ -603,6 +595,11 @@ module.exports ={
 
                 this.healthPacks.push(newHealthPack);
                 this.minions.splice(key, 1);
+                if (this.players[bullet.owner] != null) {
+                  this.players[bullet.owner].statistics.minionsKilled++;
+                }
+                
+                
               }              
             }
           }
@@ -866,6 +863,7 @@ module.exports ={
           }else if (player.team == 2) {
             playerInArea2++
           }
+          ++player.statistics.towerContribution;//statistics contribution
         }
       }
     }
@@ -1023,7 +1021,8 @@ module.exports ={
                 if (minion.lastAttack+minion.attackCooldown  < Date.now()) {
                   //last time fired, for CD calculations
                   minion.lastAttack = Date.now();
-                  player.healthPoints -= minion.minionAttackDamage;
+                  this.avatarTakeDamage(player, minion.minionAttackDamage)
+                  
                   if (player.healthPoints <= 0) {
                     player.team = 0;
                     player.healthPoints =100;
@@ -1059,6 +1058,7 @@ module.exports ={
   *         Game Over
   *************************************************************************/
   gameOver: function(){
+    this.RoutingServer.sendAllGameInfo(true);
     this.bullets.splice(0,this.bullets.length);
     this.bullets = [];
     this.minions.splice(0,this.minions.length);
