@@ -10,7 +10,7 @@ const Player = require('./entity/player.js');
 const Game = require('./entity/game.js');
 const gameList = new Array();
 const playersList = {};
-const SERVERWEB = "http://localhost:5000";
+const SERVERWEB = "http://192.168.20.102:5000";
 
 
 /************************************************************************
@@ -37,6 +37,12 @@ exports.updateWorldObjects = function (controlPoints, minionFactories, teamPoint
   if(io.sockets.adapter.rooms.game != null){
     io.to("game").emit('world',controlPoints , minionFactories, teamPoints, healthPacks, bosses, SpawnArea);
   };
+}
+//Functions to tell clients a tower is attacking
+exports.towerAttack = function (tower){
+  if(io.sockets.adapter.rooms.game != null){
+    io.to("game").emit('towerAttack', tower);
+   }
 }
 // function to finish and destroy a game
 exports.GameOver = function(){
@@ -66,20 +72,60 @@ exports.GameOver = function(){
 *        On Connection get events from clients
 *************************************************************************/
 io.on('connection', function(socket) {
-  console.log(socket.id," has joined the server")
   socket.join('lobby');// this client joins room lobby
   socket.emit('room', "lobby"); // tell this client he is on lobby
   
   if (playersList[socket.id] == null) { //check if the player is aready in the list of connected players
     const newPlayer = JSON.parse(JSON.stringify(Player)); //create a new player from my Model
     newPlayer.id = socket.id; // give the new player an id socket
+    newPlayer.ready = false;
     playersList[socket.id] = newPlayer;   // add the player to the current list
+
+     //variable to see to what team this player should be added
+     let teamOne = 0;
+     let teamTwo = 0;
+ 
+     //check all players to see if this user is already a player kill old socket keep new one
+     for (const key in playersList) {
+       if (playersList.hasOwnProperty(key)) {
+         const player = playersList[key];
+     // count how many players in each team
+         if (player.team == 1) {
+           teamOne ++;  
+         } else if(player.team == 2) {
+           teamTwo ++;
+         }
+       }
+     }
+ 
+     if (teamOne <= teamTwo) {
+       playersList[socket.id].team = 1; 
+     } else {
+       playersList[socket.id].team = 2; 
+     }
+
   }else{
     console.log("Player with this socket already exists"); //alert me that somthings wrong and the player already exists
   }
-  socket.on("userID", function(userId){
+  //get user id from the client to sync with the database
+  socket.on("userID", function(userId, name){
+   
+    //check all players to see if this user is already a player kill old socket keep new one
+    for (const key in playersList) {
+      if (playersList.hasOwnProperty(key)) {
+        const player = playersList[key];
+
+        // delete old socket of this client
+        if (player.userId != null && player.id != socket.id && player.userId  == userId) {
+          io.sockets.connected[player.id].disconnect(); 
+        }
+      }
+    }
     playersList[socket.id].userId = userId;
+    playersList[socket.id].name = name;
+    refreshLobby();
   })
+
   refreshLobby(); // updates the info of the lobby on all clients (because there is a new player)
   
   //socket.to('lobby')
@@ -89,19 +135,42 @@ io.on('connection', function(socket) {
   //console.log(Object.keys(io.sockets.adapter.rooms).length);
   //console.log(Array.from(Object.keys(socket.adapter.rooms)).length  );
 
-  //player changes team and applys name
-  socket.on("team", function(nb, name){
+  //player changes team 
+  socket.on("team", function(nb){
     playersList[socket.id].team = nb;     
-    playersList[socket.id].name = name;
-    refreshLobby(); //refresh lobby because a player has a new name and team
+    refreshLobby(); //refresh lobby because a player has a new team
+  });
+  //player is ready to start game
+  socket.on("ready", function(){
+    playersList[socket.id].ready = true;
+    
+    let allReady = false;
+    for (const key in playersList) {
+      if (playersList.hasOwnProperty(key)) {
+        const player = playersList[key];
+        
+        if (!player.ready) {
+          allReady = false;
+          break;
+        }
+        allReady=true;
+      }
+    }
+
+    if(allReady){
+      io.to('lobby').emit('startGame');
+    }
+    refreshLobby(); //refresh lobby because ready status changed
+  });
+  //player is ready to start game
+  socket.on("unready", function(){
+    playersList[socket.id].ready = false;     
+    refreshLobby(); //refresh lobby because ready status changed
   });
 
-
-  // Player id = to Socket Id  TO DO: Should change this to an UUID
-  socket.on('joinGame', function() {
+  socket.on("enterGame", function(){  
     // if there are no available games
     if (gameList[0] == null) {
-      console.log("joined a game")
       // create an instance of a Game
       const game = Object.create(Game);
       //add it to the game instance list
@@ -125,15 +194,14 @@ io.on('connection', function(socket) {
         }
     }
 
-
     socket.leave('lobby');// leave the lobby
     socket.join('game');// join the room Game
 
      // add this player to the list Active players
     socket.emit('room', "game"); // tell this client he his in game room
 
-    refreshLobby();
   });
+
 
   socket.on('forceDisconnect', function() {
     io.sockets.connected[socket.id].disconnect();
@@ -170,7 +238,6 @@ io.on('connection', function(socket) {
   
   // Event on client disconnect  Remove the player from the game
   socket.on('disconnect', () => {
-    console.log("disconnecting: ",socket.id)
     if (playersList.hasOwnProperty(socket.id)) {
       delete playersList[socket.id];
       if (gameList[0] != null && gameList[0].players[socket.id] != null) {
@@ -188,7 +255,6 @@ io.on('connection', function(socket) {
   // Change Players team
   socket.on('team', function(t) {
     playersList[socket.id].team = t;
-    playersList[socket.id].healthPoints = 100;
   });
 
   socket.on('power',function (interfaceInput) {  
@@ -203,7 +269,7 @@ io.on('connection', function(socket) {
 //Sends info to refresh the Lobby Room
 function refreshLobby(){
   if (io.sockets.adapter.rooms.lobby != null) {
-    io.to('lobby').emit('refreshLobby', io.sockets.adapter.rooms.lobby.length, playersList);
+    io.to('lobby').emit('refreshLobby', playersList);
   }
 };
 
@@ -266,7 +332,6 @@ exports.sendAllGameInfo = function(endgame) {
       
       gameObject.players = players;
       gameList[0].statistics = gameObject;
-      console.log("Creation de les statistics initiale")
 
 
     } else {

@@ -54,7 +54,6 @@ module.exports ={
     const cp1 = JSON.parse(JSON.stringify(controlPoint));
     cp1.x = (this.worldLimits.right/2) - distanceFromCenter;
     cp1.y = (this.worldLimits.right/2) - distanceFromCenter;
-    
 
     const cp2 = JSON.parse(JSON.stringify(controlPoint));
     cp2.x = (this.worldLimits.right/2) + distanceFromCenter;
@@ -228,7 +227,7 @@ module.exports ={
         thisGame.teamPoints[1] -= 1;
         thisGame.teamPoints[2] -= 1;
 
-        thisGame.RoutingServer.sendAllGameInfo(false);
+        
 
         // Send world objects to the clients
         thisGame.RoutingServer.updateWorldObjects(thisGame.controlPoints, thisGame.minionFactories, thisGame.teamPoints, thisGame.healthPacks, thisGame.bosses, thisGame.spawnAreas);
@@ -236,6 +235,8 @@ module.exports ={
           thisGame.gameOver();
         }
       }, 1000 / 2);
+
+      setInterval(function() {thisGame.RoutingServer.sendAllGameInfo(false);}, 5000 );
     }
   },
   /************************************************************************
@@ -249,6 +250,9 @@ module.exports ={
         if (this.players[id].weaponCoolDown+300 < Date.now()) {
           //last time fired, for CD calculations
           this.players[id].weaponCoolDown = Date.now();
+
+          console.log(this.players[id].name, x, y)
+
 
           //get coords for bullet direction
           bulletX = this.players[id]['x'] - x;
@@ -336,6 +340,8 @@ module.exports ={
     newbullet.x = boss['x'];
     newbullet.y = boss['y'];
     newbullet.speed = 8;
+    newbullet.radius = 8;
+    newbullet.damage = 25;
 
    this.bullets.push(newbullet);
     }
@@ -349,7 +355,6 @@ module.exports ={
     const player = this.players[playerid];
     if (player && !player.powerIsActive) {
 
-      console.log(player.id);
       //check if is not spectator
       if (player.team == 1) { 
         const dx = player.x - this.worldLimits.left;
@@ -375,7 +380,7 @@ module.exports ={
   *************************************************************************/
   activatePower: function(id, mouseX, mouseY){
     if (this.players[id]) {
-      
+      //console.log(this.players[id].name, mouseX, mouseY)
       const player = this.players[id];
       //check if is not spectator
       if (player.team != 0) {
@@ -443,9 +448,10 @@ module.exports ={
             if (player.powerStartCooldownTimer+player.powerCooldown < Date.now() && !player.powerIsActive) {
               player.powerActivation = Date.now()
 
-              this.fireBullet(mouseX, mouseY, player.id, true)
+              this.fireBullet(mouseX, mouseY, id, true)
 
-              player.powerIsActive = true;
+              console.log(this.players[id].name, mouseY, mouseX)
+              
             }
             break;
           default:
@@ -775,6 +781,7 @@ module.exports ={
           this.teamPoints[1] -= 25;
           tower.points -= 5;
         } 
+        this.RoutingServer.towerAttack(tower);
       }
       if (tower.points <= 5) {
         tower.team = 0;
