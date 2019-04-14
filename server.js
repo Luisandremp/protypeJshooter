@@ -11,6 +11,7 @@ const Game = require('./entity/game.js');
 const gameList = new Array();
 const playersList = {};
 const SERVERWEB = "http://192.168.20.102:5000";
+//const SERVERWEB = "http://192.168.43.154:5000";
 
 
 /************************************************************************
@@ -136,8 +137,12 @@ io.on('connection', function(socket) {
   //console.log(Array.from(Object.keys(socket.adapter.rooms)).length  );
 
   //player changes team 
-  socket.on("team", function(nb){
-    playersList[socket.id].team = nb;     
+  socket.on("team", function(nb, name){
+    playersList[socket.id].team = nb; 
+    console.log (name);
+    if (name) {
+      playersList[socket.id].name = name;  
+    }
     refreshLobby(); //refresh lobby because a player has a new team
   });
   //player is ready to start game
@@ -192,6 +197,7 @@ io.on('connection', function(socket) {
           player.x = gameList[0].worldLimits.right-50
           player.y = gameList[0].worldLimits.top+50
         }
+        gameList[0].RoutingServer.sendAllGameInfo(false);  
     }
 
     socket.leave('lobby');// leave the lobby

@@ -143,6 +143,8 @@ module.exports ={
   *************************************************************************/
   start: function(){
     thisGame  = this;
+
+    thisGame.RoutingServer.sendAllGameInfo(false);//iniciate statistics
     
     
 
@@ -250,9 +252,6 @@ module.exports ={
         if (this.players[id].weaponCoolDown+300 < Date.now()) {
           //last time fired, for CD calculations
           this.players[id].weaponCoolDown = Date.now();
-
-          console.log(this.players[id].name, x, y)
-
 
           //get coords for bullet direction
           bulletX = this.players[id]['x'] - x;
@@ -380,7 +379,7 @@ module.exports ={
   *************************************************************************/
   activatePower: function(id, mouseX, mouseY){
     if (this.players[id]) {
-      //console.log(this.players[id].name, mouseX, mouseY)
+
       const player = this.players[id];
       //check if is not spectator
       if (player.team != 0) {
@@ -449,9 +448,7 @@ module.exports ={
               player.powerActivation = Date.now()
 
               this.fireBullet(mouseX, mouseY, id, true)
-
-              console.log(this.players[id].name, mouseY, mouseX)
-              
+              player.powerIsActive = true;
             }
             break;
           default:
@@ -1005,15 +1002,6 @@ module.exports ={
 
         if((destinationX <= distX+10 && destinationX >= distX-10) 
           && (destinationY <= distY+10 && destinationY >= distY-10) ){
-            if (minion.team == 0) {
-              //do nothing
-            }else if (minion.team  == 1) {
-              //this.teamPoints["2"] -= 25;
-              //console.log("team 2")
-            }else if (minion.team  == 2) {
-              //console.log("team 1")
-              //this.teamPoints["1"] -= 25;
-            }
             this.minions.splice(key, 1);
           }else{
 

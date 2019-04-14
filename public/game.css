@@ -1,0 +1,24 @@
+#canvas {
+    width: 650px;
+    height: 650px;
+    border: 5px solid black;
+    display: block;
+}
+#menu{
+width: 400px;
+border: 5px solid black;
+display: flex;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+padding: 10px;
+}
+.team{
+display: flex;
+flex-direction: column;
+flex: 1;
+
+}
+.hor{
+display: flex;        
+}

@@ -1,3 +1,9 @@
+const ipAddress = 'localhost';
+const port = '3000';
+const socket = io();
+socket.connect('http://' + ipAddress + ':' + port);
+
+
 class Camera{
   constructor(xOffset,yOffset,){
       this.xOffset = xOffset;
@@ -20,7 +26,7 @@ class Camera{
     }      
   }
 }
-const socket = io();
+
 //const objectList = new Array();
 
 //instantitate camera
@@ -132,19 +138,25 @@ document.addEventListener('keyup', function(event) {
 socket.on('room', function (r) {
   enterRoom(r);
 });
-socket.on("refreshLobby", function(nbPlayers, players){
+socket.on("refreshLobby", function(playerList){
   $("#nb").load("index.html #nb", function(){
-    $("#nb").html(nbPlayers)
+    $("#nb").html(Object.keys(playerList).length)
   });
+
   let listP1 = "";
   let listP2 = "";
-  for (p in players){
-    if (players[p].team == 1) {
-      listP1 += "<li>"+players[p].name+"</li>";
+  for (const p in playerList){
+    
+    console.log(playerList)
+    if (playerList.hasOwnProperty(p)){
+      if (playerList[p].team == 1) {
+        listP1 += "<li>"+playerList[p].name+"</li>";
+      }
+      else if (playerList[p].team == 2) {
+        listP2 += "<li>"+playerList[p].name+"</li>";
+      }
     }
-    else if (players[p].team == 2) {
-      listP2 += "<li>"+players[p].name+"</li>";
-    }
+   
     
   }
   $("#team1list").load("index.html #team1list", function(){
@@ -165,7 +177,7 @@ function enterRoom(room){
     canvas.style["display"] = "none";
      //clear frame
      $("#btnStart").click(function(event){
-      socket.emit('joinGame');
+      socket.emit('enterGame');
      });
     $("#btnTeam1").click(function(event){
       socket.emit('team', 1 , $("#nickname").val());
@@ -220,7 +232,7 @@ function enterRoom(room){
 
 function drawBackground(){
   const img = new Image();
-  img.src = "./imgs/hex.png";
+  img.src = "imgs/hex.png";
   imgSize = 400;
   worldSize = 1500;
   iteration = Math.ceil(worldSize/imgSize);
@@ -249,10 +261,7 @@ function drawBackground(){
     **/
     context.clearRect(0, 0, canvas.width, canvas.height);
     drawBackground();
-
-     
-    
- 
+   
     // draw Text with team points
     chooseColor(1);
     context.fillRect(10, 10, (((canvas.width/2)-10)/500)*(teamPoints["1"]), 10);
