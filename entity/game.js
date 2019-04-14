@@ -15,8 +15,8 @@ module.exports ={
   worldLimits: {
       top: 0,
       left: 0,
-      right: 2500,
-      bottom: 2500
+      right: 1500,
+      bottom: 1500
     },
   teamPoints:{
       "1": 0,
@@ -36,18 +36,18 @@ module.exports ={
     this.minionFactories= new Array(),
     controlPoint = {
       team: 0,
-      area: 150,
+      area: 75,
       conqueringTeam: 0,
       points: 0,
       type:"shooting",
       minionSpawnTick: 0,
       targets: [],
-      width: 50,
-      height: 50,
+      width: 25,
+      height: 25,
       x: 0,
       y: 0
     };
-    const extraDistance = 150;
+    const extraDistance = 100;
     const distanceFromCenter = this.Boss.area+this.Boss.radius+controlPoint.width+extraDistance;
     const distanceFromBorder = controlPoint.area+controlPoint.width+extraDistance;
 
@@ -867,7 +867,7 @@ module.exports ={
           }else if (player.team == 2) {
             playerInArea2++
           }
-          ++player.statistics.towerContribution;//statistics contribution
+          //++player.statistics.towerContribution;//statistics contribution
         }
       }
     }

@@ -7,7 +7,7 @@ socket.connect('http://' + ipAddress + ':' + port);
 
 this.room= "";
 //this.canvas= {width: 650, height: 650};
-this.worldSize= 2500;
+this.worldSize= 1500;
 this.backgroundImage= {};
 this.towerAttacks= [];
 
@@ -23,8 +23,11 @@ const _this = this;
 
 const canvas = document.getElementById('canvas');
 const menu = document.getElementById('menu');
+let keyboard = $('input[name=keyboard]:checked').val();
 
-
+$('input[name=keyboard]').change(function() {
+    keyboard =$('input[name=keyboard]:checked').val();
+});
 
 // listen for what room we are on
 socket.on('room', function (r) {
@@ -32,6 +35,7 @@ socket.on('room', function (r) {
 });
 
 socket.on("refreshLobby", function(playerList){
+    
     $("#nb").load("index.html #nb", function(){
       $("#nb").html(Object.keys(playerList).length)
     });
@@ -154,9 +158,6 @@ context.mouse = {
  * Mouse Events
  **/
 function getMousePosition(x, y) {
-    console.log("x: "+x,  camera.xOffset)
-    console.log("y: "+y,  camera.yOffset)
-    console.log("================================================")
     movement.clickX = x+camera.xOffset;
     movement.clickY = y+camera.yOffset;                
 }
@@ -174,6 +175,54 @@ canvas.addEventListener("mouseup", function(e) {
     context.mouse.clicked = false;
     movement.click = context.mouse.clicked;
 });
+
+if(keyboard == "QWERTY"){
+//Keyboard Events
+document.addEventListener('keydown', function(event) {
+    switch (event.keyCode) {
+    case 65: // A
+        movement.left = true;
+        break;
+    case 87: // W
+        movement.up = true;
+        break;
+    case 68: // D
+        movement.right = true;
+        break;
+    case 83: // S
+        movement.down = true;
+        break; 
+    }
+});
+document.addEventListener('keyup', function(event) {
+switch (event.keyCode) {
+    case 65: // A
+    movement.left = false;
+    break;
+    case 87: // W
+    movement.up = false;
+    break;
+    case 68: // D
+    movement.right = false;
+    break;
+    case 83: // S
+    movement.down = false;
+    break;
+    case 49: // 1
+    socket.emit('choosePower', 1);
+    break;
+    case 50: // 2
+    socket.emit('choosePower', 2);
+    break;
+    case 51: // 3
+    socket.emit('choosePower', 3);
+    break;
+    case 32: // space
+    socket.emit('power', movement);
+    break;
+}
+});
+}else{
 //Keyboard Events
 document.addEventListener('keydown', function(event) {
     switch (event.keyCode) {
@@ -219,6 +268,8 @@ switch (event.keyCode) {
     break;
 }
 });
+}
+
 
 /**
     *  Recursive Function to send client information
