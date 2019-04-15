@@ -11,7 +11,7 @@ module.exports = {
   'radius': 10,
   'x': 0,
   'y': 0,
-  'speed': 4,
+  'speed': 2,
   'randomx': 500,
   'randomy': 500,
   'dirX': "dirX",
