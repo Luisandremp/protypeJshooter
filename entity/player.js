@@ -8,7 +8,7 @@ module.exports = {
     'dirY': 0,
     'x': 500,
     'y': 500,
-    'speed': 5,
+    'speed': 8,
     'weaponCoolDown': 1,
     'power': 1,
     'powerIsActive': false,

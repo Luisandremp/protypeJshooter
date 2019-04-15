@@ -154,12 +154,12 @@ module.exports ={
     this.spawnAreas=  [
       {
       'team': 1,
-      'area': 300,
+      'area': 200,
       'x': 0,
       'y': this.worldLimits.bottom
       },{
       'team': 2,
-      'area': 300,
+      'area': 200,
       'x': this.worldLimits.right,
       'y': this.worldLimits.top
     }]
