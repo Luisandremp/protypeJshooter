@@ -36,14 +36,14 @@ module.exports ={
     this.minionFactories= new Array(),
     controlPoint = {
       team: 0,
-      area: 75,
+      area: 80,
       conqueringTeam: 0,
       points: 0,
       type:"shooting",
       minionSpawnTick: 0,
       targets: [],
-      width: 25,
-      height: 25,
+      width: 30,
+      height: 30,
       x: 0,
       y: 0
     };

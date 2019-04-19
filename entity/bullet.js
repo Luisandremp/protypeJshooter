@@ -3,7 +3,7 @@ module.exports = {
   'owner': "",
   'team': "",
   'radius': 5,
-  'speed': 22,
+  'speed': 18,
   damage: 15,
   'creation': 0,
   'dirX': "dirX",
